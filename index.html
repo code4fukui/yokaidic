@@ -22,19 +22,19 @@ app: MIT <a href=https://github.com/code4fukui/yokaidic>src on GitHub</a> (<a hr
 
 
 <script type="module">
-//import { CSV } from "https://js.sabae.cc/CSV.js";
-import { CSV } from "./CSV.js";
-// import { IndexedCache } from "https://code4fukui.github.io/IndexedCache/IndexedCache.js";
+import { CSV } from "https://js.sabae.cc/CSV.js";
+ import { IndexedCache } from "https://code4fukui.github.io/IndexedCache/IndexedCache.js";
 //import { ArrayUtil } from "https://js.sabae.cc/ArrayUtil.js";
-import { rnd } from "./rnd.js";
+import { rnd } from "https://js.sabae.cc/rnd.js";
 
 intext.disabled = true;
 intext.value = "loading...";
+const url = "https://code4fukui.github.io/yokaidb/yokaidb.csv";
 const fn = "yokaidb.csv";
 
-//const cache = await IndexedCache.create(fn, 1);
-//const bin = await cache.fetchOrLoad(fn);
-const bin = new Uint8Array(await (await fetch(fn)).arrayBuffer());
+const cache = await IndexedCache.create(fn, 1);
+const bin = await cache.fetchOrLoad(url);
+//const bin = new Uint8Array(await (await fetch(fn)).arrayBuffer());
 const data = CSV.parse(new TextDecoder().decode(bin));
 
 console.log(data.length);
@@ -176,7 +176,7 @@ intext.oninput = () => {
 };
 
 onhashchange = () => {
-  intext.value = decodeURIComponent(document.location.hash.substring(1)) || "胃";
+  intext.value = decodeURIComponent(document.location.hash.substring(1)) || "Kuzuryu";
   intext.oninput();
 };
 onhashchange();
