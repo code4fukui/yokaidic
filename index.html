@@ -5,7 +5,7 @@
 <title>YokaiDic/妖怪辞書 powered by Yokai.com</title>
 <body>
 <div id=divin>
-<input type=text id=intext><span class=title>YokaiDic</span>
+<input type=text id=intext><span class=title>YokaiDic/妖怪辞書</span>
 </div>
 <div id=divresult></div>
 <div id=btnc>
@@ -15,40 +15,35 @@
 <footer>
 <a id=credit></a>
 <h1>YokaiDic/妖怪辞書</h1>
-DATA: <a href=https://yokai.com/>Yokai.com – the online database of Japanese folklore</a><br>
+DATA: TEXT by <a href=https://yokai.com/>Yokai.com – the online database of Japanese folklore</a> (CC BY-SA-NC)<br>
 forked from: <a href=https://github.com/code4fukui/ipsj-words>IT辞書</a>, <a href=https://github.com/code4fukui/CEdic>CE典</a><br>
 app: MIT <a href=https://github.com/code4fukui/yokaidic>src on GitHub</a> (<a href=https://fukuno.jig.jp/4403>blog 一日一創</a>)<br>
 </footer>
 
 
 <script type="module">
-import { CSV } from "https://js.sabae.cc/CSV.js";
-import { IndexedCache } from "https://code4fukui.github.io/IndexedCache/IndexedCache.js";
+//import { CSV } from "https://js.sabae.cc/CSV.js";
+import { CSV } from "./CSV.js";
+// import { IndexedCache } from "https://code4fukui.github.io/IndexedCache/IndexedCache.js";
 //import { ArrayUtil } from "https://js.sabae.cc/ArrayUtil.js";
-import { rnd } from "https://js.sabae.cc/rnd.js";
+import { rnd } from "./rnd.js";
 
 intext.disabled = true;
 intext.value = "loading...";
 const fn = "yokaidb.csv";
-const keyname = "name";
 
-const cache = await IndexedCache.create(fn, 1);
-const bin = await cache.fetchOrLoad(fn);
+//const cache = await IndexedCache.create(fn, 1);
+//const bin = await cache.fetchOrLoad(fn);
+const bin = new Uint8Array(await (await fetch(fn)).arrayBuffer());
 const data = CSV.parse(new TextDecoder().decode(bin));
 
 console.log(data.length);
-const keys0 = [];
-for (const d of data) {
-  d[keyname].split("，").forEach(i => keys0.push(i));
-}
-const keys = keys0.sort((a, b) => b.length - a.length);
-console.log("keys.length", keys, keys.length);
+
 //data0.filter(i => i.説明);
 //const data2 = ArrayUtil.toUnique(data.map(i => i.用語));
 //console.log(data2.length, "/", data.length, "/", data0.length);
 //console.log(data.length, "/", data0.length);
 //console.log(data);
-data.forEach(i => i.key = i[keyname].toUpperCase());
 
 intext.disabled = false;
 intext.value = "";
@@ -99,56 +94,34 @@ const setWithLink = (div, s) => {
     n = nhit + keyhit.length;
   }
 };
-const list2htmlBlock = (div, data) => {
-  const tbl = cr("table");
-  if (data.length > 0) {
-    //const names = [keyname, "MDCコード", "分類コード", "ICDコード"];
-    const names = Object.keys(data[0]);
-    const tr = cr("tr", tbl);
-    for (const name of names) {
-      cr("th", tr).textContent = name; // name.replace("コード", "");
-    }
-    for (const d of data) {
-      const set = (td, name) => {
-        setWithLink(td, d[name]);
-        td.className = name;
-        return td;
-      };
-      const tr = cr("tr", tbl);
-      /*
-      set(cr("th", tr), "kanji");
-      set(cr("td", tr), "kanji_s");
-      */
-      const td1 = cr("td", tr);
-      td1.className = "means";
-      //setWithLink(td1, d.用語.replace(/\|/g, "、"));
-      //td1.textContent = d[keyname]; //.replace(/\|/g, "、");
-      const ss = d[keyname].split("，");
-      for (const key of ss) {
-        const a = cr("a");
-        a.textContent = key;
-        const url = "https://ja.wikipedia.org/w/index.php?search=";
-        //const url = "https://ja.wikipedia.org/wiki/";
-        a.setAttribute("href", url + encodeURIComponent(key));
-        td1.appendChild(a);
-        a.style.marginLeft = ".5em";
-      }
 
-      //const names = ["MDCコード", "分類コード", "ICDコード"];
-      for (const name of names) {
-        set(cr("td", tr), name);
-      }
-      //set(cr("td", tr), "説明");
-      /*
-      const tr2 = cr("tr", tbl);
-      const tdp = cr("td", tr2);
-      //set(tdp, "pron").setAttribute("colspan", 2);
-      //tdp.onclick = () => speech(d.kanji);
-      */
+const addText = (div, s) => {
+  if (s.startsWith("https://")) {
+    const a = cr("a", div);
+    a.textContent = s;
+    a.setAttribute("href", s);
+    a.setAttribute("target", "_blank");
+  } else {
+    const ss = s.split("\n");
+    for (const s of ss) {
+      const div2 = cr("div", div);
+      div2.textContent = s;
     }
   }
+};
+
+const list2htmlBlock = (div, data) => {
   div.innerHTML = "";
-  div.appendChild(tbl);
+  for (const d of data) {
+    const tbl = cr("table", div);
+    for (const name in d) {
+      if (!d[name]) continue;
+      const tr = cr("tr", tbl);
+      const th = cr("th", tr);
+      th.textContent = name;
+      addText(cr("td", tr), d[name]);
+    }
+  }
 };
 
 const maxcnt = 100;
@@ -159,7 +132,7 @@ intext.oninput = () => {
   const keyu = key.toUpperCase();
   const data2 = data.filter(d => {
     for (const name in d) {
-      if (d.key.indexOf(keyu) >= 0) {
+      if (d[name].toUpperCase().indexOf(keyu) >= 0) {
         return true;
       }
     }
@@ -172,7 +145,13 @@ intext.oninput = () => {
     return;
   }
   */
-  const val = (i) => {
+  
+  const val = (d) => {
+    for (const name in d) {
+      if (d[name] == key) return 0;
+    }
+    return 1;
+    /*
     let pnt = 0;
     const keys = i[keyname].split("|");
     if (keys.indexOf(key) >= 0) return 0;
@@ -180,6 +159,7 @@ intext.oninput = () => {
     //if (!i.説明) return 100000 * 10000 + n;
     if (i[keyname].indexOf(key) >= 0) return -1 + n;
     return 100000 * 100 + n;
+    */
   };
   data2.sort((a, b) => val(a) - val(b));
   const flgmore = data2.length > maxcnt;
@@ -202,7 +182,7 @@ onhashchange = () => {
 onhashchange();
 
 btnrnd.onclick = () => {
-  const key = keys[rnd(keys.length)];
+  const key = data[rnd(data.length)].name_ja.split("\n")[0];
   intext.value = key;
   intext.oninput();
 };
@@ -250,10 +230,22 @@ input {
 table {
   border-collapse: collapse;
   width: 100%;
+  margin-bottom: 1em;
 }
 th, td {
   border: 1px solid black;
   padding: .2em .3em;
+}
+th {
+  font-size: 80%;
+  text-align: left;
+  vertical-align: top;
+}
+td a {
+  color: black !important;
+}
+td div {
+  margin-bottom: .5em;
 }
 .keyword {
   font-weight: bold;
