@@ -1,0 +1,290 @@
+<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<link rel="icon" href="./icon.png">
+<link rel="apple-touch-icon" href="./icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>YokaiDic/妖怪辞書 powered by Yokai.com</title>
+<body>
+<div id=divin>
+<input type=text id=intext><span class=title>YokaiDic</span>
+</div>
+<div id=divresult></div>
+<div id=btnc>
+<button id=btnrnd>ランダム</button>
+</div>
+
+<footer>
+<a id=credit></a>
+<h1>YokaiDic/妖怪辞書</h1>
+DATA: <a href=https://yokai.com/>Yokai.com – the online database of Japanese folklore</a><br>
+forked from: <a href=https://github.com/code4fukui/ipsj-words>IT辞書</a>, <a href=https://github.com/code4fukui/CEdic>CE典</a><br>
+app: MIT <a href=https://github.com/code4fukui/yokaidic>src on GitHub</a> (<a href=https://fukuno.jig.jp/4403>blog 一日一創</a>)<br>
+</footer>
+
+
+<script type="module">
+import { CSV } from "https://js.sabae.cc/CSV.js";
+import { IndexedCache } from "https://code4fukui.github.io/IndexedCache/IndexedCache.js";
+//import { ArrayUtil } from "https://js.sabae.cc/ArrayUtil.js";
+import { rnd } from "https://js.sabae.cc/rnd.js";
+
+intext.disabled = true;
+intext.value = "loading...";
+const fn = "yokaidb.csv";
+const keyname = "name";
+
+const cache = await IndexedCache.create(fn, 1);
+const bin = await cache.fetchOrLoad(fn);
+const data = CSV.parse(new TextDecoder().decode(bin));
+
+console.log(data.length);
+const keys0 = [];
+for (const d of data) {
+  d[keyname].split("，").forEach(i => keys0.push(i));
+}
+const keys = keys0.sort((a, b) => b.length - a.length);
+console.log("keys.length", keys, keys.length);
+//data0.filter(i => i.説明);
+//const data2 = ArrayUtil.toUnique(data.map(i => i.用語));
+//console.log(data2.length, "/", data.length, "/", data0.length);
+//console.log(data.length, "/", data0.length);
+//console.log(data);
+data.forEach(i => i.key = i[keyname].toUpperCase());
+
+intext.disabled = false;
+intext.value = "";
+
+const renderListSimple = (div, data2) => {
+  div.innerHTML = data2.map(i => {
+    const res = [];
+    for (const name in i) {
+      res.push(`${name}: ${i[name]}`);
+    }
+    return res.join("<br>\n");
+  }).join("<hr>");
+};
+
+const cr = (tag, parent) => {
+  const res = document.createElement(tag);
+  if (parent) parent.appendChild(res);
+  return res;
+};
+
+const setWithLink = (div, s) => {
+  const ss = [];
+  let n = 0;
+  for (;;) {
+    let keyhit = null;
+    let nhit = s.length;
+    for (let i = 0; i < keys.length; i++) {
+      const key = keys[i];
+      const m = s.indexOf(key, n);
+      if (m >= 0 && m < nhit) {
+        keyhit = key;
+        nhit = m;
+      }
+    }
+    if (!keyhit) {
+      div.appendChild(document.createTextNode(s.substring(n)));
+      break;
+    }
+    div.appendChild(document.createTextNode(s.substring(n, nhit)));
+    // link
+    const span = cr("span", div);
+    span.textContent = keyhit;
+    span.className = "keyword";
+    span.onclick = () => {
+      intext.value = keyhit;
+      intext.oninput();
+    };
+    n = nhit + keyhit.length;
+  }
+};
+const list2htmlBlock = (div, data) => {
+  const tbl = cr("table");
+  if (data.length > 0) {
+    //const names = [keyname, "MDCコード", "分類コード", "ICDコード"];
+    const names = Object.keys(data[0]);
+    const tr = cr("tr", tbl);
+    for (const name of names) {
+      cr("th", tr).textContent = name; // name.replace("コード", "");
+    }
+    for (const d of data) {
+      const set = (td, name) => {
+        setWithLink(td, d[name]);
+        td.className = name;
+        return td;
+      };
+      const tr = cr("tr", tbl);
+      /*
+      set(cr("th", tr), "kanji");
+      set(cr("td", tr), "kanji_s");
+      */
+      const td1 = cr("td", tr);
+      td1.className = "means";
+      //setWithLink(td1, d.用語.replace(/\|/g, "、"));
+      //td1.textContent = d[keyname]; //.replace(/\|/g, "、");
+      const ss = d[keyname].split("，");
+      for (const key of ss) {
+        const a = cr("a");
+        a.textContent = key;
+        const url = "https://ja.wikipedia.org/w/index.php?search=";
+        //const url = "https://ja.wikipedia.org/wiki/";
+        a.setAttribute("href", url + encodeURIComponent(key));
+        td1.appendChild(a);
+        a.style.marginLeft = ".5em";
+      }
+
+      //const names = ["MDCコード", "分類コード", "ICDコード"];
+      for (const name of names) {
+        set(cr("td", tr), name);
+      }
+      //set(cr("td", tr), "説明");
+      /*
+      const tr2 = cr("tr", tbl);
+      const tdp = cr("td", tr2);
+      //set(tdp, "pron").setAttribute("colspan", 2);
+      //tdp.onclick = () => speech(d.kanji);
+      */
+    }
+  }
+  div.innerHTML = "";
+  div.appendChild(tbl);
+};
+
+const maxcnt = 100;
+
+intext.oninput = () => {
+  const key = intext.value.trim();
+  if (key.length == 0) return;
+  const keyu = key.toUpperCase();
+  const data2 = data.filter(d => {
+    for (const name in d) {
+      if (d.key.indexOf(keyu) >= 0) {
+        return true;
+      }
+    }
+  });
+  /*
+  if (data2.length == 0) {
+    if (key.length == 0) return;
+    intext.value = key.substring(0, key.length - 1);
+    intext.oninput();
+    return;
+  }
+  */
+  const val = (i) => {
+    let pnt = 0;
+    const keys = i[keyname].split("|");
+    if (keys.indexOf(key) >= 0) return 0;
+    const n = i[keyname].charCodeAt(0) + 100000 * i[keyname].length;
+    //if (!i.説明) return 100000 * 10000 + n;
+    if (i[keyname].indexOf(key) >= 0) return -1 + n;
+    return 100000 * 100 + n;
+  };
+  data2.sort((a, b) => val(a) - val(b));
+  const flgmore = data2.length > maxcnt;
+  if (flgmore) {
+    data2.length = maxcnt;
+  }
+  //renderListSimple(divresult, data2);
+  list2htmlBlock(divresult, data2);
+  if (flgmore) {
+    divresult.appendChild(document.createTextNode("and more..."));
+  }
+  scrollTo(0, 0);
+  document.location.hash = encodeURIComponent(key);
+};
+
+onhashchange = () => {
+  intext.value = decodeURIComponent(document.location.hash.substring(1)) || "胃";
+  intext.oninput();
+};
+onhashchange();
+
+btnrnd.onclick = () => {
+  const key = keys[rnd(keys.length)];
+  intext.value = key;
+  intext.oninput();
+};
+</script>
+
+<style>
+:root {
+  --main-bg-color: #412111;
+  --main-text-color: white;
+}
+body {
+  font-family: sans-serif;
+  margin: 0;
+  padding-bottom: 50vh;
+}
+.title {
+  font-weight: bold;
+  padding: 0 .2em;
+}
+#divin {
+  background-color: var(--main-bg-color);
+  color: var(--main-text-color);
+  padding: .5em;
+  top: 0;
+  position: fixed;
+  width: 100vw;
+}
+#divin a {
+  margin: .5em;
+  color: var(--main-text-color); !important;
+  font-weight: bold;
+  font-size: 130%;
+  text-decoration: none;
+}
+#divresult {
+  margin: .5em;
+  padding-top: 3.5em;
+}
+input {
+  font-size: 140%;
+  width: 70vw;
+  max-width: 10em;
+  padding: .2em;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+th, td {
+  border: 1px solid black;
+  padding: .2em .3em;
+}
+.keyword {
+  font-weight: bold;
+}
+.means {
+  x-font-size: 90%;
+  font-weight: bold;
+}
+footer {
+  background-color: var(--main-bg-color);
+  color: var(--main-text-color);
+  padding: 1em;
+}
+a {
+  color: var(--main-text-color) !important;
+}
+h1 {
+  font-size: 130%;
+}
+#btnc {
+  text-align: center;
+}
+#btnrnd {
+  font-weight: bold;
+  padding: 1em;
+  margin: .5em 0 1.5em 0;
+  border-radius: 1em;
+  background-color: var(--main-bg-color);
+  color: var(--main-text-color);
+  border: none;
+}
+</style>
+</body>
+</html>
